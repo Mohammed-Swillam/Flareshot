@@ -164,12 +164,12 @@ public partial class AnnotationToolbar : UserControl
     }
 
     /// <summary>
-    /// Updates the enabled state of undo button.
+    /// Updates the enabled state of undo/redo buttons.
     /// </summary>
     public void UpdateUndoRedoState(bool canUndo, bool canRedo)
     {
         UndoButton.IsEnabled = canUndo;
-        // Redo button removed in simplified design
+        RedoButton.IsEnabled = canRedo;
     }
 
     /// <summary>
