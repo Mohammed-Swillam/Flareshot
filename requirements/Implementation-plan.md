@@ -62,7 +62,7 @@ This implementation plan breaks down the LightShot clone development into logica
 - [ ] Define default settings values
 
 ### 2.2 Settings Storage
-- [ ] Create settings file path: `%APPDATA%\ScreenCapture.NET\settings.json`
+- [ ] Create settings file path: `%APPDATA%\Flareshot\settings.json`
 - [ ] Implement auto-create directory if not exists
 - [ ] Handle corrupted settings file (reset to defaults)
 - [ ] Implement settings change notification
@@ -398,7 +398,7 @@ This implementation plan breaks down the LightShot clone development into logica
 
 ### 14.2 Logging
 - [ ] Create simple file logger
-- [ ] Log to `%APPDATA%\ScreenCapture.NET\logs\`
+- [ ] Log to `%APPDATA%\Flareshot\logs\`
 - [ ] Log format: `[timestamp] [level] [component] message`
 - [ ] Log errors with stack traces
 

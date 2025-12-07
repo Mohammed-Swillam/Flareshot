@@ -1,4 +1,4 @@
-# ScreenCapture.NET
+# Flareshot
 
 A lightweight, LightShot-style screen capture and annotation tool for Windows, built with WPF and .NET 8.0.
 

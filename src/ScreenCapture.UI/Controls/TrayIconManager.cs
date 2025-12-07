@@ -69,7 +69,7 @@ public class TrayIconManager : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = CreateDefaultIcon(),
-            Text = "ScreenCapture.NET",
+            Text = "Flareshot",
             Visible = false,
             ContextMenuStrip = _contextMenu
         };

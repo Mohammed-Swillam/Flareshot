@@ -1,8 +1,8 @@
-# Manual Testing Checklist - ScreenCapture.NET v0.1
+# Manual Testing Checklist - Flareshot v0.1
 
 ## Pre-Test Setup
 - [ ] Clean build: `dotnet build -c Release`
-- [ ] Remove any previous settings: Delete `%APPDATA%\ScreenCapture.NET\` folder
+- [ ] Remove any previous settings: Delete `%APPDATA%\Flareshot\` folder
 - [ ] Close any running instances
 
 ---
@@ -22,7 +22,7 @@
 
 ### 1.3 Debug Mode
 - [ ] Run with `--debug` argument
-- [ ] Check logs at `%APPDATA%\ScreenCapture.NET\logs\`
+- [ ] Check logs at `%APPDATA%\Flareshot\logs\`
 - [ ] Log file contains startup messages
 
 ### 1.4 Single Instance

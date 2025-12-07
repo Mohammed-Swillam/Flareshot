@@ -34,7 +34,7 @@ public interface IAutoStartManager
 public class AutoStartManager : IAutoStartManager
 {
     private const string RegistryKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "ScreenCapture.NET";
+    private const string AppName = "Flareshot";
 
     /// <inheritdoc />
     public bool IsEnabled

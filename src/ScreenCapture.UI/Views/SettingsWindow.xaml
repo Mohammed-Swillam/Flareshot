@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewmodels="clr-namespace:ScreenCapture.UI.ViewModels"
         mc:Ignorable="d"
-        Title="Settings - ScreenCapture.NET"
+        Title="Settings - Flareshot"
         Height="520" Width="480"
         MinHeight="480" MinWidth="400"
         WindowStartupLocation="CenterScreen"

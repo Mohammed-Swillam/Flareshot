@@ -52,13 +52,13 @@ public class SettingsChangedEventArgs : EventArgs
 
 /// <summary>
 /// Manages loading, saving, and persistence of application settings.
-/// Settings are stored in %APPDATA%\ScreenCapture.NET\settings.json
+/// Settings are stored in %APPDATA%\Flareshot\settings.json
 /// </summary>
 public class SettingsManager : ISettingsManager
 {
     private static readonly string AppDataFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "ScreenCapture.NET");
+        "Flareshot");
 
     private static readonly string SettingsFilePath = Path.Combine(AppDataFolder, "settings.json");
 

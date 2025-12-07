@@ -1,7 +1,7 @@
 # LightShot Clone - Windows Desktop App
 ## Comprehensive Developer Plan (v0.1 MVP)
 
-**Project Name:** ScreenCapture.NET  
+**Project Name:** Flareshot  
 **Target Platform:** Windows 10/11 (64-bit)  
 **Target Framework:** .NET 8.0+ 
 **UI Framework:** WPF (Windows Presentation Foundation)  
@@ -31,12 +31,10 @@
 
 ## Executive Summary
 
-This document outlines the development plan for a Windows desktop screenshot tool (LightShot clone) with annotation capabilities. The project follows a phased approach:
+This document outlines the development plan for a Windows desktop screenshot tool with annotation capabilities. The project follows a phased approach:
 
 - **v0.1 (MVP):** Core screenshot capture + basic annotation editor
 - **v0.2+:** Extended features (blur, highlight, settings, history)
-
-**Estimated Duration:** 6-8 weeks for v0.1 (working full-time)
 
 ---
 
@@ -52,17 +50,6 @@ This document outlines the development plan for a Windows desktop screenshot too
 - [x] Multi-monitor support
 - [x] Screen dimming during selection
 - [x] Real-time selection preview with resize handles
-
-##### Window Capture Workflow
-1. User presses hotkey → overlay appears
-2. User presses **Alt key** (or clicks "Window" button) → enters window selection mode
-3. Hovering over windows highlights them with a colored border
-4. Clicking a window captures that window only
-5. **Edge cases:**
-   - Minimized windows: Skip (cannot capture minimized windows)
-   - Off-screen windows: Warn user with toast notification
-   - Windows with transparency: Capture with solid background (white)
-   - Windows behind other windows: Capture visible content only (no z-order tricks in v0.1)
 
 ##### Selection Behavior Details
 - **Minimum selection size:** 10×10 pixels (prevent accidental micro-clicks)
@@ -1544,7 +1531,7 @@ Editing large (8K) images may consume significant memory.
 
 ### Error Logging
 
-- All errors logged to `%APPDATA%\ScreenCapture.NET\logs\error.log`
+- All errors logged to `%APPDATA%\Flareshot\logs\error.log`
 - Log format: `[YYYY-MM-DD HH:mm:ss] [ERROR] [Component] Message - StackTrace`
 - Logs rotate daily, keep last 7 days
 

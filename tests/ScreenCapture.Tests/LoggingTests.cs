@@ -79,7 +79,7 @@ public class FileLoggerTests
         var logger = FileLogger.Instance;
 
         // Assert
-        Assert.Contains("ScreenCapture.NET", logger.LogFilePath);
+        Assert.Contains("Flareshot", logger.LogFilePath);
         Assert.Contains("logs", logger.LogFilePath);
         Assert.EndsWith(".txt", logger.LogFilePath);
     }

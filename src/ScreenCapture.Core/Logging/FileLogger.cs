@@ -44,10 +44,10 @@ public class FileLogger : ILogger, IDisposable
     {
         _minimumLevel = minimumLevel;
         
-        // Log to %APPDATA%\ScreenCapture.NET\logs\
+        // Log to %APPDATA%\Flareshot\logs\
         _logFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "ScreenCapture.NET",
+            "Flareshot",
             "logs");
 
         EnsureLogFolderExists();

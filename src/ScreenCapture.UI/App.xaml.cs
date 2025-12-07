@@ -21,7 +21,7 @@ namespace ScreenCapture.UI;
 public partial class App : Application
 {
     private static Mutex? _mutex;
-    private const string MutexName = "ScreenCapture.NET.SingleInstance";
+    private const string MutexName = "Flareshot.SingleInstance";
     private const int CaptureHotkeyId = 1;
 
     private ISettingsManager? _settingsManager;
@@ -68,7 +68,7 @@ public partial class App : Application
         {
             // Another instance is already running
             MessageBox.Show(
-                "ScreenCapture.NET is already running.\nCheck your system tray.",
+                "Flareshot is already running.\nCheck your system tray.",
                 "Already Running",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -171,7 +171,7 @@ public partial class App : Application
             
             // Show notification that app is running in tray
             _trayIcon?.ShowNotification(
-                "ScreenCapture.NET",
+                "Flareshot",
                 $"Running in system tray. Press {GlobalHotkeyManager.GetHotkeyDisplayString(settings.HotkeyKey, settings.HotkeyModifiers)} to capture.",
                 System.Windows.Forms.ToolTipIcon.Info);
         }
