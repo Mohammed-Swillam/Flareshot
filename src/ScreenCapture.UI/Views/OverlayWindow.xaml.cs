@@ -76,6 +76,11 @@ public partial class OverlayWindow : Window
     public event EventHandler? SelectionCancelled;
 
     /// <summary>
+    /// Event raised when file is saved.
+    /// </summary>
+    public event EventHandler<FileSavedEventArgs>? FileSaved;
+
+    /// <summary>
     /// Gets the selected region in screen coordinates.
     /// </summary>
     public DrawingRectangle SelectedRegion => new(
@@ -351,8 +356,88 @@ public partial class OverlayWindow : Window
 
     private void OnSaveRequested(object? sender, EventArgs e)
     {
-        // TODO: Implement save to file in Section 9
-        System.Windows.MessageBox.Show("Save functionality coming in next section!", "Coming Soon");
+        SaveToFile();
+    }
+
+    private void SaveToFile()
+    {
+        if (_screenshotBackground == null || !_hasSelection) return;
+
+        try
+        {
+            // Create exporter service
+            var exporter = new ScreenCapture.Core.IO.ImageExporterService();
+            
+            // Generate default filename
+            var defaultFilename = exporter.GenerateFilename("png");
+            var defaultFolder = exporter.GetDefaultSaveFolder();
+
+            // Show save file dialog
+            var saveDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Screenshot",
+                Filter = "PNG Image|*.png|JPEG Image|*.jpg;*.jpeg|All Files|*.*",
+                FileName = defaultFilename,
+                InitialDirectory = defaultFolder,
+                DefaultExt = "png"
+            };
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                var filePath = saveDialog.FileName;
+                var extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+
+                // Render with annotations
+                var annotations = DrawingCanvas.GetAll();
+                BitmapSource finalBitmap;
+
+                if (annotations.Count > 0)
+                {
+                    finalBitmap = exporter.RenderWithAnnotations(_screenshotBackground, SelectedRegion, annotations);
+                }
+                else
+                {
+                    // Just crop without annotations
+                    var cropRect = new System.Windows.Int32Rect(
+                        Math.Max(0, SelectedRegion.X),
+                        Math.Max(0, SelectedRegion.Y),
+                        Math.Min(SelectedRegion.Width, (int)_screenshotBackground.PixelWidth - Math.Max(0, SelectedRegion.X)),
+                        Math.Min(SelectedRegion.Height, (int)_screenshotBackground.PixelHeight - Math.Max(0, SelectedRegion.Y)));
+                    
+                    var cropped = new CroppedBitmap(_screenshotBackground, cropRect);
+                    cropped.Freeze();
+                    finalBitmap = cropped;
+                }
+
+                // Save based on extension
+                bool success;
+                if (extension == ".jpg" || extension == ".jpeg")
+                {
+                    success = exporter.SaveAsJpg(finalBitmap, filePath);
+                }
+                else
+                {
+                    success = exporter.SaveAsPng(finalBitmap, filePath);
+                }
+
+                if (success)
+                {
+                    // Raise event to notify App about the save (for notification)
+                    FileSaved?.Invoke(this, new FileSavedEventArgs(filePath));
+                    
+                    // Close overlay after successful save
+                    Close();
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show("Failed to save the screenshot.", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Error saving file: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void OnCloseRequested(object? sender, EventArgs e)
@@ -1087,6 +1172,14 @@ public partial class OverlayWindow : Window
                 e.Handled = true;
                 return;
             }
+
+            // Ctrl+S for save
+            if (e.Key == Key.S && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                SaveToFile();
+                e.Handled = true;
+                return;
+            }
         }
 
         switch (e.Key)
@@ -1174,5 +1267,20 @@ public class SelectionConfirmedEventArgs : EventArgs
         SelectedRegion = selectedRegion;
         Screenshot = screenshot;
         AnnotationCanvas = annotationCanvas;
+    }
+}
+
+/// <summary>
+/// Event args for file saved event.
+/// </summary>
+public class FileSavedEventArgs : EventArgs
+{
+    public string FilePath { get; }
+    public string FolderPath { get; }
+
+    public FileSavedEventArgs(string filePath)
+    {
+        FilePath = filePath;
+        FolderPath = System.IO.Path.GetDirectoryName(filePath) ?? "";
     }
 }

@@ -167,8 +167,34 @@ public partial class App : Application
         _trayIcon.SettingsClicked += (s, e) => ShowSettings();
         _trayIcon.ExitClicked += (s, e) => ExitApplication();
         _trayIcon.AutoStartChanged += OnAutoStartChanged;
+        _trayIcon.BalloonClicked += OnBalloonClicked;
 
         _trayIcon.Show();
+    }
+
+    /// <summary>
+    /// Handle balloon notification clicked.
+    /// </summary>
+    private void OnBalloonClicked(object? sender, EventArgs e)
+    {
+        // If we have a last saved file, open its folder
+        if (!string.IsNullOrEmpty(_lastSavedFilePath) && System.IO.File.Exists(_lastSavedFilePath))
+        {
+            try
+            {
+                // Open explorer and select the file
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_lastSavedFilePath}\"");
+            }
+            catch
+            {
+                // If that fails, try just opening the folder
+                var folder = System.IO.Path.GetDirectoryName(_lastSavedFilePath);
+                if (!string.IsNullOrEmpty(folder))
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", folder);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -319,6 +345,7 @@ public partial class App : Application
         _overlayWindow = new OverlayWindow(_captureService);
         _overlayWindow.SelectionConfirmed += OnSelectionConfirmed;
         _overlayWindow.SelectionCancelled += OnSelectionCancelled;
+        _overlayWindow.FileSaved += OnFileSaved;
         _overlayWindow.Closed += OnOverlayClosed;
         _overlayWindow.Show();
     }
@@ -450,6 +477,24 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Last saved file path for notification click.
+    /// </summary>
+    private string? _lastSavedFilePath;
+
+    /// <summary>
+    /// Handle file saved.
+    /// </summary>
+    private void OnFileSaved(object? sender, FileSavedEventArgs e)
+    {
+        _lastSavedFilePath = e.FilePath;
+        
+        _trayIcon?.ShowNotification(
+            "Screenshot Saved",
+            $"Saved to: {System.IO.Path.GetFileName(e.FilePath)}\nClick to open folder.",
+            System.Windows.Forms.ToolTipIcon.Info);
+    }
+
+    /// <summary>
     /// Handle overlay closed.
     /// </summary>
     private void OnOverlayClosed(object? sender, EventArgs e)
@@ -458,6 +503,7 @@ public partial class App : Application
         {
             _overlayWindow.SelectionConfirmed -= OnSelectionConfirmed;
             _overlayWindow.SelectionCancelled -= OnSelectionCancelled;
+            _overlayWindow.FileSaved -= OnFileSaved;
             _overlayWindow.Closed -= OnOverlayClosed;
             _overlayWindow = null;
         }

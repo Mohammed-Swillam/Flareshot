@@ -18,6 +18,11 @@ public class TrayIconManager : IDisposable
     public event EventHandler? DoubleClicked;
 
     /// <summary>
+    /// Event raised when a balloon notification is clicked.
+    /// </summary>
+    public event EventHandler? BalloonClicked;
+
+    /// <summary>
     /// Event raised when "New Screenshot" is clicked.
     /// </summary>
     public event EventHandler? CaptureClicked;
@@ -70,6 +75,7 @@ public class TrayIconManager : IDisposable
         };
 
         _notifyIcon.DoubleClick += (s, e) => DoubleClicked?.Invoke(this, EventArgs.Empty);
+        _notifyIcon.BalloonTipClicked += (s, e) => BalloonClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void BuildContextMenu()
