@@ -122,6 +122,16 @@ public partial class OverlayWindow : Window
         Width = bounds.Width;
         Height = bounds.Height;
 
+        // Size the canvases to fill the window
+        RootCanvas.Width = Width;
+        RootCanvas.Height = Height;
+        SelectionCanvas.Width = Width;
+        SelectionCanvas.Height = Height;
+
+        // Position instruction panel in center-top
+        Canvas.SetLeft(InstructionPanel, (Width - 400) / 2); // Approximate width
+        Canvas.SetTop(InstructionPanel, 50);
+
         // Capture the screen
         CaptureScreen();
 
@@ -207,29 +217,84 @@ public partial class OverlayWindow : Window
 
     private void PositionToolbars()
     {
-        // Position annotation toolbar to the right of selection
-        double annotationX = _selectionRect.Right + 10;
-        double annotationY = _selectionRect.Top;
+        const double annotationToolbarWidth = 28;
+        const double annotationToolbarHeight = 220;
+        const double actionToolbarWidth = 150;
+        const double actionToolbarHeight = 28;
 
-        // Keep within screen bounds
-        if (annotationX + 60 > ActualWidth)
+        // Check available space on each side of the SELECTION
+        double spaceRight = ActualWidth - _selectionRect.Right;
+        double spaceLeft = _selectionRect.Left;
+        double spaceBottom = ActualHeight - _selectionRect.Bottom;
+        double spaceTop = _selectionRect.Top;
+
+        bool canPlaceRight = spaceRight >= annotationToolbarWidth;
+        bool canPlaceLeft = spaceLeft >= annotationToolbarWidth;
+        bool canPlaceBottom = spaceBottom >= actionToolbarHeight;
+        bool canPlaceTop = spaceTop >= actionToolbarHeight;
+
+        double annotationX, annotationY;
+        double actionX, actionY;
+
+        // Priority: bottom-right, bottom-left, top-right, top-left
+        // Annotation toolbar sticks to corner of selection (bottom corner of its side)
+        // Action toolbar sticks to bottom/top edge, aligned to right side of selection
+        if (canPlaceBottom && canPlaceRight)
         {
-            annotationX = _selectionRect.Left - 60;
+            // Bottom-right (default) - annotation at bottom-right corner, action below aligned right
+            annotationX = _selectionRect.Right;
+            annotationY = _selectionRect.Bottom - annotationToolbarHeight; // Align to bottom of selection
+            actionX = _selectionRect.Right - actionToolbarWidth; // Align right side with selection
+            actionY = _selectionRect.Bottom;
+        }
+        else if (canPlaceBottom && canPlaceLeft)
+        {
+            // Bottom-left - annotation at bottom-left corner, action below aligned left
+            annotationX = _selectionRect.Left - annotationToolbarWidth;
+            annotationY = _selectionRect.Bottom - annotationToolbarHeight;
+            actionX = _selectionRect.Left; // Align left side with selection
+            actionY = _selectionRect.Bottom;
+        }
+        else if (canPlaceTop && canPlaceRight)
+        {
+            // Top-right - annotation at top-right corner, action above aligned right
+            annotationX = _selectionRect.Right;
+            annotationY = _selectionRect.Top; // Align to top of selection
+            actionX = _selectionRect.Right - actionToolbarWidth;
+            actionY = _selectionRect.Top - actionToolbarHeight;
+        }
+        else
+        {
+            // Top-left (fallback)
+            annotationX = _selectionRect.Left - annotationToolbarWidth;
+            annotationY = _selectionRect.Top;
+            actionX = _selectionRect.Left;
+            actionY = _selectionRect.Top - actionToolbarHeight;
+        }
+
+        // Clamp annotation toolbar Y to stay within screen
+        if (annotationY < 0)
+        {
+            annotationY = 0;
+        }
+        if (annotationY + annotationToolbarHeight > ActualHeight)
+        {
+            annotationY = ActualHeight - annotationToolbarHeight;
+        }
+
+        // Clamp action toolbar X to stay within selection bounds (if selection is wide enough)
+        if (actionX < _selectionRect.Left && _selectionRect.Width >= actionToolbarWidth)
+        {
+            actionX = _selectionRect.Left;
+        }
+        // If selection is narrower than toolbar, align to selection right edge
+        if (_selectionRect.Width < actionToolbarWidth)
+        {
+            actionX = _selectionRect.Right - actionToolbarWidth;
         }
 
         Canvas.SetLeft(AnnotationToolbar, annotationX);
         Canvas.SetTop(AnnotationToolbar, annotationY);
-
-        // Position action toolbar below selection
-        double actionX = _selectionRect.Left;
-        double actionY = _selectionRect.Bottom + 10;
-
-        // Keep within screen bounds
-        if (actionY + 50 > ActualHeight)
-        {
-            actionY = _selectionRect.Top - 50;
-        }
-
         Canvas.SetLeft(ActionToolbar, actionX);
         Canvas.SetTop(ActionToolbar, actionY);
     }
@@ -328,8 +393,13 @@ public partial class OverlayWindow : Window
     {
         if (_dimOverlayTop == null) return;
 
-        double canvasWidth = SelectionCanvas.ActualWidth;
-        double canvasHeight = SelectionCanvas.ActualHeight;
+        // Use the explicit Width/Height we set, or fall back to ActualWidth/ActualHeight
+        double canvasWidth = SelectionCanvas.Width > 0 ? SelectionCanvas.Width : SelectionCanvas.ActualWidth;
+        double canvasHeight = SelectionCanvas.Height > 0 ? SelectionCanvas.Height : SelectionCanvas.ActualHeight;
+
+        // If still 0, use window dimensions
+        if (canvasWidth <= 0) canvasWidth = Width;
+        if (canvasHeight <= 0) canvasHeight = Height;
 
         // Top overlay
         Canvas.SetLeft(_dimOverlayTop, 0);
@@ -663,6 +733,9 @@ public partial class OverlayWindow : Window
 
         var command = new AddAnnotationCommand(DrawingCanvas, annotation);
         _commandHistory.Execute(command);
+        
+        // Force redraw to show the text
+        DrawingCanvas.InvalidateVisual();
     }
 
     #endregion

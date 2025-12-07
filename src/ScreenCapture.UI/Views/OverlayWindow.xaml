@@ -16,7 +16,7 @@
         Loaded="Window_Loaded"
         KeyDown="Window_KeyDown">
     
-    <Grid x:Name="RootGrid">
+    <Canvas x:Name="RootCanvas">
         <!-- Selection Canvas - Handles all custom drawing -->
         <Canvas x:Name="SelectionCanvas" 
                 Background="Transparent"
@@ -31,9 +31,6 @@
         
         <!-- Instruction overlay (shown before selection starts) -->
         <Border x:Name="InstructionPanel"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin="0,50,0,0"
                 Background="#CC1E1E1E"
                 CornerRadius="8"
                 Padding="20,12"
@@ -65,8 +62,6 @@
 
         <!-- Selection dimensions display -->
         <Border x:Name="DimensionsPanel"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
                 Background="#CC1E1E1E"
                 CornerRadius="4"
                 Padding="8,4"
@@ -80,20 +75,14 @@
         
         <!-- Annotation Toolbar (right side, shown after selection) -->
         <controls:AnnotationToolbar x:Name="AnnotationToolbar"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
                                     Visibility="Collapsed"/>
         
         <!-- Action Toolbar (bottom, shown after selection) -->
         <controls:ActionToolbar x:Name="ActionToolbar"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Top"
                                 Visibility="Collapsed"/>
         
         <!-- Text Input Box (for text annotations) -->
         <Border x:Name="TextInputPanel"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
                 Background="#EE2D2D30"
                 CornerRadius="4"
                 Padding="4"
@@ -109,5 +98,5 @@
                      KeyDown="TextInputBox_KeyDown"
                      LostFocus="TextInputBox_LostFocus"/>
         </Border>
-    </Grid>
+    </Canvas>
 </Window>

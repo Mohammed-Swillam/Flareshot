@@ -125,13 +125,31 @@ public partial class AnnotationToolbar : UserControl
             {
                 var color = (Color)ColorConverter.ConvertFromString(colorHex);
                 _selectedColor = color;
-                CurrentColorBorder.Background = new SolidColorBrush(color);
+                CurrentColorButton.Background = new SolidColorBrush(color);
                 ColorChanged?.Invoke(this, _selectedColor);
             }
             catch
             {
                 // Ignore invalid color
             }
+        }
+    }
+
+    private void CurrentColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Show Windows color dialog
+        using var colorDialog = new System.Windows.Forms.ColorDialog
+        {
+            Color = System.Drawing.Color.FromArgb(_selectedColor.A, _selectedColor.R, _selectedColor.G, _selectedColor.B),
+            FullOpen = true
+        };
+
+        if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            var result = colorDialog.Color;
+            _selectedColor = Color.FromArgb(result.A, result.R, result.G, result.B);
+            CurrentColorButton.Background = new SolidColorBrush(_selectedColor);
+            ColorChanged?.Invoke(this, _selectedColor);
         }
     }
 
@@ -146,12 +164,12 @@ public partial class AnnotationToolbar : UserControl
     }
 
     /// <summary>
-    /// Updates the enabled state of undo/redo buttons.
+    /// Updates the enabled state of undo button.
     /// </summary>
     public void UpdateUndoRedoState(bool canUndo, bool canRedo)
     {
         UndoButton.IsEnabled = canUndo;
-        RedoButton.IsEnabled = canRedo;
+        // Redo button removed in simplified design
     }
 
     /// <summary>
@@ -197,7 +215,7 @@ public partial class AnnotationToolbar : UserControl
     public void SetColor(Color color)
     {
         _selectedColor = color;
-        CurrentColorBorder.Background = new SolidColorBrush(color);
+        CurrentColorButton.Background = new SolidColorBrush(color);
         ColorChanged?.Invoke(this, _selectedColor);
     }
 }

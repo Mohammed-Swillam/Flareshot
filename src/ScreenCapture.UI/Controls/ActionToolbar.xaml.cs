@@ -50,6 +50,16 @@ public partial class ActionToolbar : UserControl
         UploadRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void ShareButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Placeholder for share functionality
+    }
+
+    private void PrintButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Placeholder for print functionality
+    }
+
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         CloseRequested?.Invoke(this, EventArgs.Empty);
