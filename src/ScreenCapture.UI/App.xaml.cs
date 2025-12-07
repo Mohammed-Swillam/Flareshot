@@ -334,29 +334,80 @@ public partial class App : Application
         // Crop the screenshot to the selected region
         var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion);
         
-        if (croppedBitmap != null)
-        {
-            // Copy to clipboard
-            bool success = _clipboardService.CopyToClipboard(croppedBitmap);
+        if (croppedBitmap == null) return;
 
-            if (success)
-            {
-                _trayIcon?.ShowNotification(
-                    "Copied to Clipboard",
-                    $"Screenshot ({e.SelectedRegion.Width} × {e.SelectedRegion.Height}) copied to clipboard.",
-                    System.Windows.Forms.ToolTipIcon.Info);
-            }
-            else
-            {
-                _trayIcon?.ShowNotification(
-                    "Clipboard Error",
-                    "Failed to copy to clipboard. It may be locked by another application.",
-                    System.Windows.Forms.ToolTipIcon.Warning);
-            }
+        // Composite annotations on top of screenshot if there are any
+        BitmapSource finalBitmap = croppedBitmap;
+        
+        if (e.AnnotationCanvas != null && e.AnnotationCanvas.HasAnnotations)
+        {
+            finalBitmap = CompositeAnnotations(croppedBitmap, e.AnnotationCanvas, e.SelectedRegion);
+        }
+
+        // Copy to clipboard
+        bool success = _clipboardService.CopyToClipboard(finalBitmap);
+
+        if (success)
+        {
+            _trayIcon?.ShowNotification(
+                "Copied to Clipboard",
+                $"Screenshot ({e.SelectedRegion.Width} × {e.SelectedRegion.Height}) copied to clipboard.",
+                System.Windows.Forms.ToolTipIcon.Info);
+        }
+        else
+        {
+            _trayIcon?.ShowNotification(
+                "Clipboard Error",
+                "Failed to copy to clipboard. It may be locked by another application.",
+                System.Windows.Forms.ToolTipIcon.Warning);
         }
 
         // Close the overlay
         _overlayWindow?.Close();
+    }
+
+    /// <summary>
+    /// Composite annotations on top of the screenshot.
+    /// </summary>
+    private static BitmapSource CompositeAnnotations(BitmapSource screenshot, Controls.DrawingCanvas canvas, System.Drawing.Rectangle region)
+    {
+        try
+        {
+            var visual = new System.Windows.Media.DrawingVisual();
+
+            using (var context = visual.RenderOpen())
+            {
+                // Draw the screenshot
+                context.DrawImage(screenshot, new Rect(0, 0, screenshot.PixelWidth, screenshot.PixelHeight));
+
+                // Apply translation to render annotations at correct positions
+                context.PushTransform(new System.Windows.Media.TranslateTransform(-region.X, -region.Y));
+
+                // Draw each annotation
+                foreach (var annotation in canvas.GetAll())
+                {
+                    annotation.Render(context);
+                }
+
+                context.Pop();
+            }
+
+            var renderBitmap = new RenderTargetBitmap(
+                screenshot.PixelWidth,
+                screenshot.PixelHeight,
+                96, 96,
+                System.Windows.Media.PixelFormats.Pbgra32);
+
+            renderBitmap.Render(visual);
+            renderBitmap.Freeze();
+
+            return renderBitmap;
+        }
+        catch
+        {
+            // If compositing fails, return the original screenshot
+            return screenshot;
+        }
     }
 
     /// <summary>

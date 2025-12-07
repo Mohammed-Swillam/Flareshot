@@ -5,6 +5,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using ScreenCapture.Core.Capture;
+using ScreenCapture.Core.Drawing;
+using ScreenCapture.UI.Controls;
 
 using Rect = System.Windows.Rect;
 using WinPoint = System.Windows.Point;
@@ -19,7 +21,7 @@ using Brushes = System.Windows.Media.Brushes;
 namespace ScreenCapture.UI.Views;
 
 /// <summary>
-/// Overlay window for selecting screen region.
+/// Overlay window for selecting screen region and drawing annotations.
 /// </summary>
 public partial class OverlayWindow : Window
 {
@@ -29,6 +31,7 @@ public partial class OverlayWindow : Window
     // Selection state
     private bool _isSelecting;
     private bool _hasSelection;
+    private bool _isInEditMode;
     private WinPoint _startPoint;
     private WinPoint _currentPoint;
     private Rect _selectionRect;
@@ -39,6 +42,13 @@ public partial class OverlayWindow : Window
     private ResizeHandle _activeHandle;
     private WinPoint _moveStartPoint;
     private Rect _originalRect;
+
+    // Drawing state
+    private bool _isDrawing;
+    private Annotation? _currentAnnotation;
+    private readonly CommandHistory _commandHistory = new();
+    private AnnotationTool _currentTool = AnnotationTool.None;
+    private Color _currentColor = Colors.Red;
 
     // Visual elements
     private Rectangle? _dimOverlayTop;
@@ -79,10 +89,28 @@ public partial class OverlayWindow : Window
     /// </summary>
     public BitmapSource? ScreenshotBitmap => _screenshotBackground;
 
+    /// <summary>
+    /// Gets the drawing canvas for rendering annotations.
+    /// </summary>
+    public DrawingCanvas AnnotationCanvas => DrawingCanvas;
+
     public OverlayWindow(IScreenCaptureService captureService)
     {
         InitializeComponent();
         _captureService = captureService;
+
+        // Wire up toolbar events
+        AnnotationToolbar.ToolChanged += OnToolChanged;
+        AnnotationToolbar.ColorChanged += OnColorChanged;
+        AnnotationToolbar.UndoRequested += OnUndoRequested;
+        AnnotationToolbar.RedoRequested += OnRedoRequested;
+
+        ActionToolbar.CopyRequested += OnCopyRequested;
+        ActionToolbar.SaveRequested += OnSaveRequested;
+        ActionToolbar.CloseRequested += OnCloseRequested;
+
+        // Wire up command history
+        _commandHistory.HistoryChanged += OnHistoryChanged;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -154,6 +182,123 @@ public partial class OverlayWindow : Window
         }
     }
 
+    #region Edit Mode
+
+    private void EnterEditMode()
+    {
+        if (_isInEditMode) return;
+
+        _isInEditMode = true;
+
+        // Show drawing canvas with clipping to selection area
+        DrawingCanvas.Visibility = Visibility.Visible;
+        DrawingCanvas.Width = ActualWidth;
+        DrawingCanvas.Height = ActualHeight;
+        DrawingCanvas.IsHitTestVisible = true;
+
+        // Position and show toolbars
+        PositionToolbars();
+        AnnotationToolbar.Visibility = Visibility.Visible;
+        ActionToolbar.Visibility = Visibility.Visible;
+
+        // Switch cursor
+        Cursor = Cursors.Arrow;
+    }
+
+    private void PositionToolbars()
+    {
+        // Position annotation toolbar to the right of selection
+        double annotationX = _selectionRect.Right + 10;
+        double annotationY = _selectionRect.Top;
+
+        // Keep within screen bounds
+        if (annotationX + 60 > ActualWidth)
+        {
+            annotationX = _selectionRect.Left - 60;
+        }
+
+        Canvas.SetLeft(AnnotationToolbar, annotationX);
+        Canvas.SetTop(AnnotationToolbar, annotationY);
+
+        // Position action toolbar below selection
+        double actionX = _selectionRect.Left;
+        double actionY = _selectionRect.Bottom + 10;
+
+        // Keep within screen bounds
+        if (actionY + 50 > ActualHeight)
+        {
+            actionY = _selectionRect.Top - 50;
+        }
+
+        Canvas.SetLeft(ActionToolbar, actionX);
+        Canvas.SetTop(ActionToolbar, actionY);
+    }
+
+    #endregion
+
+    #region Toolbar Event Handlers
+
+    private void OnToolChanged(object? sender, AnnotationTool tool)
+    {
+        _currentTool = tool;
+
+        // Update cursor based on tool
+        if (tool == AnnotationTool.None)
+        {
+            Cursor = Cursors.Arrow;
+        }
+        else if (tool == AnnotationTool.Text)
+        {
+            Cursor = Cursors.IBeam;
+        }
+        else
+        {
+            Cursor = Cursors.Cross;
+        }
+    }
+
+    private void OnColorChanged(object? sender, Color color)
+    {
+        _currentColor = color;
+    }
+
+    private void OnHistoryChanged(object? sender, EventArgs e)
+    {
+        AnnotationToolbar.UpdateUndoRedoState(_commandHistory.CanUndo, _commandHistory.CanRedo);
+    }
+
+    private void OnUndoRequested(object? sender, EventArgs e)
+    {
+        _commandHistory.Undo();
+        DrawingCanvas.InvalidateVisual();
+    }
+
+    private void OnRedoRequested(object? sender, EventArgs e)
+    {
+        _commandHistory.Redo();
+        DrawingCanvas.InvalidateVisual();
+    }
+
+    private void OnCopyRequested(object? sender, EventArgs e)
+    {
+        ConfirmSelection();
+    }
+
+    private void OnSaveRequested(object? sender, EventArgs e)
+    {
+        // TODO: Implement save to file in Section 9
+        System.Windows.MessageBox.Show("Save functionality coming in next section!", "Coming Soon");
+    }
+
+    private void OnCloseRequested(object? sender, EventArgs e)
+    {
+        Cancel();
+    }
+
+    #endregion
+
+    #region Dim Overlays
+
     private void CreateDimOverlays()
     {
         _dimOverlayTop = CreateDimRect();
@@ -211,11 +356,25 @@ public partial class OverlayWindow : Window
         _dimOverlayRight.Height = selection.Height;
     }
 
+    #endregion
+
     #region Mouse Handling
 
     private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var point = e.GetPosition(SelectionCanvas);
+
+        // If in edit mode with a tool selected, start drawing
+        if (_isInEditMode && _currentTool != AnnotationTool.None)
+        {
+            // Check if point is within selection
+            if (_selectionRect.Contains(point))
+            {
+                StartDrawing(point);
+                SelectionCanvas.CaptureMouse();
+                return;
+            }
+        }
 
         // Check if clicking on resize handle
         var handle = GetResizeHandleAtPoint(point);
@@ -243,8 +402,16 @@ public partial class OverlayWindow : Window
         // Start new selection
         _isSelecting = true;
         _hasSelection = false;
+        _isInEditMode = false;
         _startPoint = point;
         _currentPoint = point;
+
+        // Hide toolbars and reset
+        AnnotationToolbar.Visibility = Visibility.Collapsed;
+        ActionToolbar.Visibility = Visibility.Collapsed;
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+        DrawingCanvas.Clear();
+        _commandHistory.Clear();
 
         // Hide instruction panel
         InstructionPanel.Visibility = Visibility.Collapsed;
@@ -259,7 +426,11 @@ public partial class OverlayWindow : Window
     {
         var point = e.GetPosition(SelectionCanvas);
 
-        if (_isSelecting)
+        if (_isDrawing)
+        {
+            ContinueDrawing(point);
+        }
+        else if (_isSelecting)
         {
             _currentPoint = point;
             UpdateSelection();
@@ -272,7 +443,7 @@ public partial class OverlayWindow : Window
         {
             HandleMove(point);
         }
-        else if (_hasSelection)
+        else if (_hasSelection && !_isInEditMode)
         {
             // Update cursor based on position
             UpdateCursor(point);
@@ -283,7 +454,11 @@ public partial class OverlayWindow : Window
     {
         SelectionCanvas.ReleaseMouseCapture();
 
-        if (_isSelecting)
+        if (_isDrawing)
+        {
+            FinishDrawing();
+        }
+        else if (_isSelecting)
         {
             _isSelecting = false;
             
@@ -292,7 +467,7 @@ public partial class OverlayWindow : Window
             {
                 _hasSelection = true;
                 CreateResizeHandles();
-                Cursor = Cursors.Arrow;
+                EnterEditMode();
             }
             else
             {
@@ -308,13 +483,186 @@ public partial class OverlayWindow : Window
             _isResizing = false;
             _activeHandle = ResizeHandle.None;
             UpdateResizeHandles();
+            PositionToolbars();
         }
         else if (_isMoving)
         {
             _isMoving = false;
-            Cursor = Cursors.Arrow;
+            Cursor = _currentTool == AnnotationTool.None ? Cursors.Arrow : Cursors.Cross;
             UpdateResizeHandles();
+            PositionToolbars();
         }
+    }
+
+    #endregion
+
+    #region Drawing
+
+    private void StartDrawing(WinPoint point)
+    {
+        _isDrawing = true;
+
+        switch (_currentTool)
+        {
+            case AnnotationTool.Pencil:
+                var pencil = new PencilAnnotation { Color = _currentColor, IsPreview = true };
+                pencil.Points.Add(point);
+                _currentAnnotation = pencil;
+                break;
+
+            case AnnotationTool.Line:
+                _currentAnnotation = new LineAnnotation
+                {
+                    StartPoint = point,
+                    EndPoint = point,
+                    Color = _currentColor,
+                    IsPreview = true
+                };
+                break;
+
+            case AnnotationTool.Arrow:
+                _currentAnnotation = new ArrowAnnotation
+                {
+                    StartPoint = point,
+                    EndPoint = point,
+                    Color = _currentColor,
+                    IsPreview = true
+                };
+                break;
+
+            case AnnotationTool.Rectangle:
+                _currentAnnotation = new RectangleAnnotation
+                {
+                    StartPoint = point,
+                    EndPoint = point,
+                    Color = _currentColor,
+                    IsPreview = true
+                };
+                break;
+
+            case AnnotationTool.Marker:
+                var marker = new MarkerAnnotation { Color = _currentColor, IsPreview = true };
+                marker.Points.Add(point);
+                _currentAnnotation = marker;
+                break;
+
+            case AnnotationTool.Text:
+                _isDrawing = false;
+                ShowTextInput(point);
+                return;
+        }
+
+        if (_currentAnnotation != null)
+        {
+            DrawingCanvas.SetPreview(_currentAnnotation);
+        }
+    }
+
+    private void ContinueDrawing(WinPoint point)
+    {
+        if (_currentAnnotation == null) return;
+
+        // Clamp to selection area
+        point = new WinPoint(
+            Math.Max(_selectionRect.Left, Math.Min(_selectionRect.Right, point.X)),
+            Math.Max(_selectionRect.Top, Math.Min(_selectionRect.Bottom, point.Y)));
+
+        switch (_currentAnnotation)
+        {
+            case PencilAnnotation pencil:
+                pencil.Points.Add(point);
+                break;
+
+            case LineAnnotation line:
+                line.EndPoint = point;
+                break;
+
+            case ArrowAnnotation arrow:
+                arrow.EndPoint = point;
+                break;
+
+            case RectangleAnnotation rect:
+                rect.EndPoint = point;
+                break;
+
+            case MarkerAnnotation marker:
+                marker.Points.Add(point);
+                break;
+        }
+
+        DrawingCanvas.SetPreview(_currentAnnotation);
+    }
+
+    private void FinishDrawing()
+    {
+        _isDrawing = false;
+
+        if (_currentAnnotation != null)
+        {
+            _currentAnnotation.IsPreview = false;
+            DrawingCanvas.SetPreview(null);
+
+            // Add to history and canvas
+            var command = new AddAnnotationCommand(DrawingCanvas, _currentAnnotation);
+            _commandHistory.Execute(command);
+        }
+
+        _currentAnnotation = null;
+    }
+
+    #endregion
+
+    #region Text Input
+
+    private WinPoint _textInsertPoint;
+
+    private void ShowTextInput(WinPoint point)
+    {
+        _textInsertPoint = point;
+
+        Canvas.SetLeft(TextInputPanel, point.X);
+        Canvas.SetTop(TextInputPanel, point.Y);
+        TextInputPanel.Visibility = Visibility.Visible;
+
+        TextInputBox.Text = "";
+        TextInputBox.Focus();
+    }
+
+    private void TextInputBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            CommitTextAnnotation();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            TextInputPanel.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+        }
+    }
+
+    private void TextInputBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        CommitTextAnnotation();
+    }
+
+    private void CommitTextAnnotation()
+    {
+        TextInputPanel.Visibility = Visibility.Collapsed;
+
+        var text = TextInputBox.Text.Trim();
+        if (string.IsNullOrEmpty(text)) return;
+
+        var annotation = new TextAnnotation
+        {
+            Position = _textInsertPoint,
+            Text = text,
+            Color = _currentColor
+        };
+
+        var command = new AddAnnotationCommand(DrawingCanvas, annotation);
+        _commandHistory.Execute(command);
     }
 
     #endregion
@@ -606,6 +954,68 @@ public partial class OverlayWindow : Window
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
+        // Handle tool shortcuts
+        if (_isInEditMode)
+        {
+            switch (e.Key)
+            {
+                case Key.P:
+                    AnnotationToolbar.SelectTool(AnnotationTool.Pencil);
+                    e.Handled = true;
+                    return;
+                case Key.L:
+                    AnnotationToolbar.SelectTool(AnnotationTool.Line);
+                    e.Handled = true;
+                    return;
+                case Key.A:
+                    if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                    {
+                        AnnotationToolbar.SelectTool(AnnotationTool.Arrow);
+                        e.Handled = true;
+                        return;
+                    }
+                    break;
+                case Key.R:
+                    AnnotationToolbar.SelectTool(AnnotationTool.Rectangle);
+                    e.Handled = true;
+                    return;
+                case Key.M:
+                    AnnotationToolbar.SelectTool(AnnotationTool.Marker);
+                    e.Handled = true;
+                    return;
+                case Key.T:
+                    AnnotationToolbar.SelectTool(AnnotationTool.Text);
+                    e.Handled = true;
+                    return;
+            }
+
+            // Ctrl+Z for undo
+            if (e.Key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                _commandHistory.Undo();
+                DrawingCanvas.InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+
+            // Ctrl+Y for redo
+            if (e.Key == Key.Y && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                _commandHistory.Redo();
+                DrawingCanvas.InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+
+            // Ctrl+C for copy
+            if (e.Key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                ConfirmSelection();
+                e.Handled = true;
+                return;
+            }
+        }
+
         switch (e.Key)
         {
             case Key.Escape:
@@ -624,7 +1034,7 @@ public partial class OverlayWindow : Window
             case Key.Right:
             case Key.Up:
             case Key.Down:
-                if (_hasSelection)
+                if (_hasSelection && !_isInEditMode)
                 {
                     int delta = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
                     MoveSelection(e.Key, delta);
@@ -670,7 +1080,8 @@ public partial class OverlayWindow : Window
     {
         SelectionConfirmed?.Invoke(this, new SelectionConfirmedEventArgs(
             SelectedRegion,
-            _screenshotBackground));
+            _screenshotBackground,
+            DrawingCanvas));
     }
 
     #endregion
@@ -683,10 +1094,12 @@ public class SelectionConfirmedEventArgs : EventArgs
 {
     public DrawingRectangle SelectedRegion { get; }
     public BitmapSource? Screenshot { get; }
+    public DrawingCanvas? AnnotationCanvas { get; }
 
-    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, BitmapSource? screenshot)
+    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, BitmapSource? screenshot, DrawingCanvas? annotationCanvas = null)
     {
         SelectedRegion = selectedRegion;
         Screenshot = screenshot;
+        AnnotationCanvas = annotationCanvas;
     }
 }

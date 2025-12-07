@@ -1,0 +1,206 @@
+<UserControl x:Class="ScreenCapture.UI.Controls.AnnotationToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="350" d:DesignWidth="50">
+    
+    <UserControl.Resources>
+        <!-- Tool Button Style -->
+        <Style x:Key="ToolButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="#3C3C3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                BorderThickness="2"
+                                BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#505050"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#606060"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Toggle Tool Button Style (for selected state) -->
+        <Style x:Key="ToggleToolButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="#3C3C3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                BorderThickness="2"
+                                BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#505050"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2196F3"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#64B5F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Color Button Style -->
+        <Style x:Key="ColorButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                BorderThickness="2"
+                                BorderBrush="Transparent">
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    
+    <Border Background="#CC2D2D30" CornerRadius="8" Padding="4">
+        <StackPanel>
+            <!-- Drawing Tools -->
+            <ToggleButton x:Name="PencilButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Pencil (P)"
+                          Click="PencilButton_Click">
+                <Path Data="M12,2L2,12L2,18L8,18L18,8L12,2M14,4L16,6L6,16L4,16L4,14L14,4Z" 
+                      Fill="White" Stretch="Uniform" Width="20" Height="20"/>
+            </ToggleButton>
+            
+            <ToggleButton x:Name="LineButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Line (L)"
+                          Click="LineButton_Click">
+                <Path Data="M2,2 L18,18" Stroke="White" StrokeThickness="2" Width="20" Height="20"/>
+            </ToggleButton>
+            
+            <ToggleButton x:Name="ArrowButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Arrow (A)"
+                          Click="ArrowButton_Click">
+                <Path Data="M4,18 L16,6 M16,6 L16,12 M16,6 L10,6" 
+                      Stroke="White" StrokeThickness="2" Width="20" Height="20"/>
+            </ToggleButton>
+            
+            <ToggleButton x:Name="RectangleButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Rectangle (R)"
+                          Click="RectangleButton_Click">
+                <Rectangle Stroke="White" StrokeThickness="2" Width="16" Height="12"/>
+            </ToggleButton>
+            
+            <ToggleButton x:Name="MarkerButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Marker/Highlighter (M)"
+                          Click="MarkerButton_Click">
+                <Path Data="M2,14 L8,8 L18,18 L12,24 L2,14 M8,8 L12,4" 
+                      Stroke="Yellow" StrokeThickness="3" Opacity="0.7" 
+                      Width="20" Height="20" Stretch="Uniform"/>
+            </ToggleButton>
+            
+            <ToggleButton x:Name="TextButton" 
+                          Style="{StaticResource ToggleToolButtonStyle}"
+                          ToolTip="Text (T)"
+                          Click="TextButton_Click">
+                <TextBlock Text="T" FontSize="18" FontWeight="Bold" Foreground="White"/>
+            </ToggleButton>
+            
+            <!-- Separator -->
+            <Border Height="1" Background="#555" Margin="4,8"/>
+            
+            <!-- Color Palette -->
+            <WrapPanel HorizontalAlignment="Center" Width="48">
+                <Button Background="#F44336" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#F44336"/>
+                <Button Background="#4CAF50" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#4CAF50"/>
+                <Button Background="#2196F3" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#2196F3"/>
+                <Button Background="#FFEB3B" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#FFEB3B"/>
+                <Button Background="#FFFFFF" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#FFFFFF"/>
+                <Button Background="#000000" Style="{StaticResource ColorButtonStyle}" 
+                        Click="ColorButton_Click" Tag="#000000"/>
+            </WrapPanel>
+            
+            <!-- Current Color Display -->
+            <Border x:Name="CurrentColorBorder" 
+                    Width="32" Height="32" 
+                    Margin="4,8,4,4"
+                    CornerRadius="4"
+                    BorderThickness="2"
+                    BorderBrush="White"
+                    Background="#F44336"/>
+            
+            <!-- Separator -->
+            <Border Height="1" Background="#555" Margin="4,8"/>
+            
+            <!-- Actions -->
+            <Button x:Name="UndoButton" 
+                    Style="{StaticResource ToolButtonStyle}"
+                    ToolTip="Undo (Ctrl+Z)"
+                    Click="UndoButton_Click"
+                    IsEnabled="False">
+                <Path Data="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" 
+                      Fill="White" Stretch="Uniform" Width="18" Height="18"/>
+            </Button>
+            
+            <Button x:Name="RedoButton" 
+                    Style="{StaticResource ToolButtonStyle}"
+                    ToolTip="Redo (Ctrl+Y)"
+                    Click="RedoButton_Click"
+                    IsEnabled="False">
+                <Path Data="M11.5,8C14.15,8 16.55,9 18.4,10.6L22,7V16H13L16.62,12.38C15.23,11.22 13.46,10.5 11.5,10.5C7.96,10.5 4.95,12.81 3.9,16L1.53,15.22C2.92,11.03 6.85,8 11.5,8Z" 
+                      Fill="White" Stretch="Uniform" Width="18" Height="18"/>
+            </Button>
+        </StackPanel>
+    </Border>
+</UserControl>

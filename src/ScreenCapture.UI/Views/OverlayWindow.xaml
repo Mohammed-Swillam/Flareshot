@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:ScreenCapture.UI.Controls"
         mc:Ignorable="d"
         Title="ScreenCapture"
         WindowStyle="None"
@@ -22,6 +23,11 @@
                 MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
                 MouseMove="Canvas_MouseMove"
                 MouseLeftButtonUp="Canvas_MouseLeftButtonUp" />
+        
+        <!-- Drawing Canvas - Overlay for annotations -->
+        <controls:DrawingCanvas x:Name="DrawingCanvas" 
+                                IsHitTestVisible="False"
+                                Visibility="Collapsed"/>
         
         <!-- Instruction overlay (shown before selection starts) -->
         <Border x:Name="InstructionPanel"
@@ -70,6 +76,38 @@
                        Foreground="White"
                        FontSize="12"
                        FontFamily="Consolas" />
+        </Border>
+        
+        <!-- Annotation Toolbar (right side, shown after selection) -->
+        <controls:AnnotationToolbar x:Name="AnnotationToolbar"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Visibility="Collapsed"/>
+        
+        <!-- Action Toolbar (bottom, shown after selection) -->
+        <controls:ActionToolbar x:Name="ActionToolbar"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Visibility="Collapsed"/>
+        
+        <!-- Text Input Box (for text annotations) -->
+        <Border x:Name="TextInputPanel"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="#EE2D2D30"
+                CornerRadius="4"
+                Padding="4"
+                Visibility="Collapsed">
+            <TextBox x:Name="TextInputBox"
+                     Width="200"
+                     Background="Transparent"
+                     Foreground="White"
+                     CaretBrush="White"
+                     BorderThickness="0"
+                     FontSize="14"
+                     AcceptsReturn="True"
+                     KeyDown="TextInputBox_KeyDown"
+                     LostFocus="TextInputBox_LostFocus"/>
         </Border>
     </Grid>
 </Window>
