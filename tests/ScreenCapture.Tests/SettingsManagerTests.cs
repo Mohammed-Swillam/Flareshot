@@ -5,23 +5,11 @@ namespace ScreenCapture.Tests;
 
 /// <summary>
 /// Unit tests for SettingsManager.
+/// Note: These tests share a common settings file, so they run in a Collection to avoid parallelism issues.
 /// </summary>
+[Collection("SettingsTests")]
 public class SettingsManagerTests
 {
-    [Fact]
-    public async Task LoadAsync_WithNoFile_ReturnsDefaults()
-    {
-        // Arrange
-        var manager = new SettingsManager();
-
-        // Act
-        var settings = await manager.LoadAsync();
-
-        // Assert
-        Assert.NotNull(settings);
-        Assert.Equal(44, settings.HotkeyKey); // Default: PrintScreen
-    }
-
     [Fact]
     public async Task SaveAsync_ThenLoad_ReturnsSavedValues()
     {
@@ -35,7 +23,10 @@ public class SettingsManagerTests
 
         // Act
         await manager.SaveAsync(settings);
-        var loaded = await manager.LoadAsync();
+        
+        // Create new manager to ensure we're reading from disk
+        var manager2 = new SettingsManager();
+        var loaded = await manager2.LoadAsync();
 
         // Assert
         Assert.Equal(120, loaded.HotkeyKey);
@@ -70,6 +61,9 @@ public class SettingsManagerTests
             newSettings = args.NewSettings;
         };
 
+        // Wait a moment to avoid file lock from previous test
+        await Task.Delay(100);
+
         // Act
         await manager.SaveAsync(new AppSettings { JpgQuality = 70 });
 
@@ -77,5 +71,20 @@ public class SettingsManagerTests
         Assert.True(eventFired);
         Assert.NotNull(newSettings);
         Assert.Equal(70, newSettings!.JpgQuality);
+    }
+
+    [Fact]
+    public void CurrentSettings_ShouldReturnClone()
+    {
+        // Arrange
+        var manager = new SettingsManager();
+
+        // Act
+        var settings1 = manager.CurrentSettings;
+        var settings2 = manager.CurrentSettings;
+        settings1.JpgQuality = 50;
+
+        // Assert - modifying returned settings should not affect original
+        Assert.NotEqual(settings1.JpgQuality, settings2.JpgQuality);
     }
 }

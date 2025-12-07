@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.ComponentModel;
+using System.Windows;
 using ScreenCapture.UI.Views;
 
 using Application = System.Windows.Application;
@@ -14,6 +15,38 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// Handle closing - minimize to tray instead of closing.
+    /// </summary>
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        // Minimize to tray instead of closing
+        e.Cancel = true;
+        WindowState = WindowState.Minimized;
+        ShowInTaskbar = false;
+        Hide();
+
+        base.OnClosing(e);
+    }
+
+    /// <summary>
+    /// Handle state changes to update taskbar visibility.
+    /// </summary>
+    protected override void OnStateChanged(EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            ShowInTaskbar = false;
+            Hide();
+        }
+        else
+        {
+            ShowInTaskbar = true;
+        }
+
+        base.OnStateChanged(e);
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
