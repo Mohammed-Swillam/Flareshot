@@ -4,6 +4,7 @@ using System.Windows.Media.Imaging;
 using ScreenCapture.Core.Capture;
 using ScreenCapture.Core.Hotkeys;
 using ScreenCapture.Core.IO;
+using ScreenCapture.Core.Logging;
 using ScreenCapture.Core.Models;
 using ScreenCapture.Core.Services;
 using ScreenCapture.UI.Controls;
@@ -89,6 +90,11 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Gets whether debug logging is enabled (via --debug argument).
+    /// </summary>
+    public bool DebugLoggingEnabled { get; private set; }
+
+    /// <summary>
     /// Parse command line arguments.
     /// </summary>
     private void ParseArguments(string[] args)
@@ -100,6 +106,11 @@ public partial class App : Application
             {
                 StartMinimized = true;
             }
+            else if (arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
+                     arg.Equals("--log", StringComparison.OrdinalIgnoreCase))
+            {
+                DebugLoggingEnabled = true;
+            }
         }
     }
 
@@ -110,10 +121,22 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Initialize logger only if --debug flag is set
+        if (DebugLoggingEnabled)
+        {
+            FileLogger.Instance.Info("Application starting (debug mode)", "App");
+            FileLogger.Instance.CleanupOldLogs(7);
+        }
+
         // Initialize managers
         _settingsManager = new SettingsManager();
         _autoStartManager = new AutoStartManager();
         var settings = await _settingsManager.LoadAsync();
+
+        if (DebugLoggingEnabled)
+        {
+            FileLogger.Instance.Info("Settings loaded", "App");
+        }
 
         // Subscribe to settings changes
         _settingsManager.SettingsChanged += OnSettingsChanged;
@@ -548,6 +571,11 @@ public partial class App : Application
     /// </summary>
     protected override void OnExit(ExitEventArgs e)
     {
+        if (DebugLoggingEnabled)
+        {
+            FileLogger.Instance.Info("Application shutting down", "App");
+        }
+
         // Cleanup
         _hotkeyManager?.Dispose();
         _trayIcon?.Dispose();
@@ -556,6 +584,12 @@ public partial class App : Application
         if (_settingsManager != null)
         {
             _settingsManager.SettingsChanged -= OnSettingsChanged;
+        }
+
+        if (DebugLoggingEnabled)
+        {
+            FileLogger.Instance.Info("Application exited cleanly", "App");
+            FileLogger.Instance.Dispose();
         }
 
         base.OnExit(e);
