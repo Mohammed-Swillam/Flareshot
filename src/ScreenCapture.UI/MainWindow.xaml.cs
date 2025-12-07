@@ -61,11 +61,22 @@ public partial class MainWindow : Window
 
     private void CaptureButton_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement capture trigger
-        MessageBox.Show(
-            "Screen capture will be implemented in the next section!",
-            "Coming Soon",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        // Trigger capture through the app
+        var app = (App)Application.Current;
+        
+        // Hide this window first
+        Hide();
+        
+        // Small delay then trigger capture
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(150)
+        };
+        timer.Tick += (s, args) =>
+        {
+            timer.Stop();
+            app.TriggerCapturePublic();
+        };
+        timer.Start();
     }
 }

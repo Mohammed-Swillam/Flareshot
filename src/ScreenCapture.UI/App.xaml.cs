@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Interop;
+using ScreenCapture.Core.Capture;
 using ScreenCapture.Core.Hotkeys;
 using ScreenCapture.Core.Models;
 using ScreenCapture.Core.Services;
@@ -23,8 +24,10 @@ public partial class App : Application
     private ISettingsManager? _settingsManager;
     private IAutoStartManager? _autoStartManager;
     private IGlobalHotkeyManager? _hotkeyManager;
+    private IScreenCaptureService? _captureService;
     private TrayIconManager? _trayIcon;
     private HwndSource? _hwndSource;
+    private OverlayWindow? _overlayWindow;
 
     /// <summary>
     /// Gets the settings manager instance.
@@ -42,6 +45,11 @@ public partial class App : Application
     /// Gets whether the application was started with --minimized argument.
     /// </summary>
     public bool StartMinimized { get; private set; }
+
+    /// <summary>
+    /// Public method to trigger capture from MainWindow.
+    /// </summary>
+    public void TriggerCapturePublic() => TriggerCapture();
 
     /// <summary>
     /// Application entry point with single-instance enforcement.
@@ -294,11 +302,65 @@ public partial class App : Application
     /// </summary>
     private void TriggerCapture()
     {
-        // TODO: Implement in Section 5 & 6
+        // Don't open another overlay if one is already open
+        if (_overlayWindow != null)
+        {
+            return;
+        }
+
+        // Initialize capture service if needed
+        _captureService ??= new ScreenCaptureService();
+
+        // Hide main window during capture
+        MainWindow?.Hide();
+
+        // Small delay to ensure window is hidden
+        System.Threading.Thread.Sleep(100);
+
+        // Create and show overlay
+        _overlayWindow = new OverlayWindow(_captureService);
+        _overlayWindow.SelectionConfirmed += OnSelectionConfirmed;
+        _overlayWindow.SelectionCancelled += OnSelectionCancelled;
+        _overlayWindow.Closed += OnOverlayClosed;
+        _overlayWindow.Show();
+    }
+
+    /// <summary>
+    /// Handle selection confirmed.
+    /// </summary>
+    private void OnSelectionConfirmed(object? sender, SelectionConfirmedEventArgs e)
+    {
+        // For now, just show a notification with the selected region
+        // Full annotation support will be added in later sections
         _trayIcon?.ShowNotification(
-            "Capture",
-            "Screen capture will be implemented in the next section!",
+            "Selection Captured",
+            $"Selected region: {e.SelectedRegion.Width} × {e.SelectedRegion.Height}",
             System.Windows.Forms.ToolTipIcon.Info);
+
+        // Close the overlay
+        _overlayWindow?.Close();
+    }
+
+    /// <summary>
+    /// Handle selection cancelled.
+    /// </summary>
+    private void OnSelectionCancelled(object? sender, EventArgs e)
+    {
+        // Overlay closes itself
+    }
+
+    /// <summary>
+    /// Handle overlay closed.
+    /// </summary>
+    private void OnOverlayClosed(object? sender, EventArgs e)
+    {
+        if (_overlayWindow != null)
+        {
+            _overlayWindow.SelectionConfirmed -= OnSelectionConfirmed;
+            _overlayWindow.SelectionCancelled -= OnSelectionCancelled;
+            _overlayWindow.Closed -= OnOverlayClosed;
+            _overlayWindow = null;
+        }
     }
 
     /// <summary>
