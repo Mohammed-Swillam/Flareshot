@@ -1,7 +1,9 @@
 ﻿using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 using ScreenCapture.Core.Capture;
 using ScreenCapture.Core.Hotkeys;
+using ScreenCapture.Core.IO;
 using ScreenCapture.Core.Models;
 using ScreenCapture.Core.Services;
 using ScreenCapture.UI.Controls;
@@ -25,6 +27,7 @@ public partial class App : Application
     private IAutoStartManager? _autoStartManager;
     private IGlobalHotkeyManager? _hotkeyManager;
     private IScreenCaptureService? _captureService;
+    private IClipboardService? _clipboardService;
     private TrayIconManager? _trayIcon;
     private HwndSource? _hwndSource;
     private OverlayWindow? _overlayWindow;
@@ -125,10 +128,21 @@ public partial class App : Application
         // Initialize system tray
         InitializeTrayIcon(settings);
 
-        // Show window or minimize to tray
+        // We need to show the window briefly to create the window handle for hotkey registration
+        // Then we can hide it if starting minimized
+        mainWindow.Show();
+        
+        // Force window handle creation by getting the helper
+        var helper = new WindowInteropHelper(mainWindow);
+        helper.EnsureHandle();
+
+        // Initialize hotkey immediately since we now have a handle
+        InitializeHotkey(mainWindow, settings);
+
+        // Now minimize to tray if needed
         if (shouldStartMinimized)
         {
-            // Start minimized to tray (window won't be shown)
+            mainWindow.Hide();
             mainWindow.WindowState = WindowState.Minimized;
             mainWindow.ShowInTaskbar = false;
             
@@ -137,22 +151,6 @@ public partial class App : Application
                 "ScreenCapture.NET",
                 $"Running in system tray. Press {GlobalHotkeyManager.GetHotkeyDisplayString(settings.HotkeyKey, settings.HotkeyModifiers)} to capture.",
                 System.Windows.Forms.ToolTipIcon.Info);
-        }
-        else
-        {
-            mainWindow.Show();
-        }
-
-        // Initialize hotkey after window is created (needs window handle)
-        mainWindow.SourceInitialized += (s, args) =>
-        {
-            InitializeHotkey(mainWindow, settings);
-        };
-
-        // If window is already initialized, set up hotkey immediately
-        if (PresentationSource.FromVisual(mainWindow) != null)
-        {
-            InitializeHotkey(mainWindow, settings);
         }
     }
 
@@ -330,15 +328,66 @@ public partial class App : Application
     /// </summary>
     private void OnSelectionConfirmed(object? sender, SelectionConfirmedEventArgs e)
     {
-        // For now, just show a notification with the selected region
-        // Full annotation support will be added in later sections
-        _trayIcon?.ShowNotification(
-            "Selection Captured",
-            $"Selected region: {e.SelectedRegion.Width} × {e.SelectedRegion.Height}",
-            System.Windows.Forms.ToolTipIcon.Info);
+        // Initialize clipboard service if needed
+        _clipboardService ??= new ClipboardService();
+
+        // Crop the screenshot to the selected region
+        var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion);
+        
+        if (croppedBitmap != null)
+        {
+            // Copy to clipboard
+            bool success = _clipboardService.CopyToClipboard(croppedBitmap);
+
+            if (success)
+            {
+                _trayIcon?.ShowNotification(
+                    "Copied to Clipboard",
+                    $"Screenshot ({e.SelectedRegion.Width} × {e.SelectedRegion.Height}) copied to clipboard.",
+                    System.Windows.Forms.ToolTipIcon.Info);
+            }
+            else
+            {
+                _trayIcon?.ShowNotification(
+                    "Clipboard Error",
+                    "Failed to copy to clipboard. It may be locked by another application.",
+                    System.Windows.Forms.ToolTipIcon.Warning);
+            }
+        }
 
         // Close the overlay
         _overlayWindow?.Close();
+    }
+
+    /// <summary>
+    /// Crop a BitmapSource to the specified region.
+    /// </summary>
+    private static BitmapSource? CropBitmap(BitmapSource? source, System.Drawing.Rectangle region)
+    {
+        if (source == null) return null;
+
+        try
+        {
+            // Calculate the crop region relative to the source
+            // The overlay coordinates are already in screen space from Left/Top
+            var cropRect = new Int32Rect(
+                Math.Max(0, region.X),
+                Math.Max(0, region.Y),
+                Math.Min(region.Width, (int)source.PixelWidth - region.X),
+                Math.Min(region.Height, (int)source.PixelHeight - region.Y));
+
+            // Ensure valid dimensions
+            if (cropRect.Width <= 0 || cropRect.Height <= 0)
+                return null;
+
+            var croppedBitmap = new CroppedBitmap(source, cropRect);
+            croppedBitmap.Freeze();
+            return croppedBitmap;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>
