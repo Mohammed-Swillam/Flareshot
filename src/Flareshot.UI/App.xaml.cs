@@ -36,7 +36,7 @@ public partial class App : Application
     /// <summary>
     /// Gets the settings manager instance.
     /// </summary>
-    public ISettingsManager SettingsManager => _settingsManager 
+    public ISettingsManager SettingsManager => _settingsManager
         ?? throw new InvalidOperationException("Settings manager not initialized.");
 
     /// <summary>
@@ -154,7 +154,7 @@ public partial class App : Application
         // We need to show the window briefly to create the window handle for hotkey registration
         // Then we can hide it if starting minimized
         mainWindow.Show();
-        
+
         // Force window handle creation by getting the helper
         var helper = new WindowInteropHelper(mainWindow);
         helper.EnsureHandle();
@@ -168,7 +168,7 @@ public partial class App : Application
             mainWindow.Hide();
             mainWindow.WindowState = WindowState.Minimized;
             mainWindow.ShowInTaskbar = false;
-            
+
             // Show notification that app is running in tray
             _trayIcon?.ShowNotification(
                 "Flareshot",
@@ -382,13 +382,14 @@ public partial class App : Application
         _clipboardService ??= new ClipboardService();
 
         // Crop the screenshot to the selected region
-        var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion);
-        
+        // Pass virtual screen bounds to correctly offset coordinates for multi-monitor setups
+        var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion, e.VirtualScreenBounds);
+
         if (croppedBitmap == null) return;
 
         // Composite annotations on top of screenshot if there are any
         BitmapSource finalBitmap = croppedBitmap;
-        
+
         if (e.AnnotationCanvas != null && e.AnnotationCanvas.HasAnnotations)
         {
             finalBitmap = CompositeAnnotations(croppedBitmap, e.AnnotationCanvas, e.SelectedRegion);
@@ -463,19 +464,29 @@ public partial class App : Application
     /// <summary>
     /// Crop a BitmapSource to the specified region.
     /// </summary>
-    private static BitmapSource? CropBitmap(BitmapSource? source, System.Drawing.Rectangle region)
+    /// <param name="source">The source bitmap (captured virtual screen).</param>
+    /// <param name="region">The selected region in screen coordinates.</param>
+    /// <param name="virtualBounds">The virtual screen bounds (origin of the captured bitmap).</param>
+    private static BitmapSource? CropBitmap(BitmapSource? source, System.Drawing.Rectangle region, System.Drawing.Rectangle virtualBounds)
     {
         if (source == null) return null;
 
         try
         {
-            // Calculate the crop region relative to the source
-            // The overlay coordinates are already in screen space from Left/Top
-            var cropRect = new Int32Rect(
-                Math.Max(0, region.X),
-                Math.Max(0, region.Y),
-                Math.Min(region.Width, (int)source.PixelWidth - region.X),
-                Math.Min(region.Height, (int)source.PixelHeight - region.Y));
+            // Convert screen coordinates to bitmap-relative coordinates
+            // The bitmap starts at (0,0) but represents the virtual screen starting at (virtualBounds.X, virtualBounds.Y)
+            // For example, if monitor 2 is at X=-1920 and virtual bounds starts at X=-1920,
+            // then a selection at X=-1920 should map to bitmap X=0
+            int bitmapX = region.X - virtualBounds.X;
+            int bitmapY = region.Y - virtualBounds.Y;
+
+            // Clamp to valid bitmap bounds
+            int clampedX = Math.Max(0, bitmapX);
+            int clampedY = Math.Max(0, bitmapY);
+            int clampedWidth = Math.Min(region.Width, (int)source.PixelWidth - clampedX);
+            int clampedHeight = Math.Min(region.Height, (int)source.PixelHeight - clampedY);
+
+            var cropRect = new Int32Rect(clampedX, clampedY, clampedWidth, clampedHeight);
 
             // Ensure valid dimensions
             if (cropRect.Width <= 0 || cropRect.Height <= 0)
@@ -510,7 +521,7 @@ public partial class App : Application
     private void OnFileSaved(object? sender, FileSavedEventArgs e)
     {
         _lastSavedFilePath = e.FilePath;
-        
+
         _trayIcon?.ShowNotification(
             "Screenshot Saved",
             $"Saved to: {System.IO.Path.GetFileName(e.FilePath)}\nClick to open folder.",

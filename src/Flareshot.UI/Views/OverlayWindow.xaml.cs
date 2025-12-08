@@ -90,6 +90,15 @@ public partial class OverlayWindow : Window
         (int)_selectionRect.Height);
 
     /// <summary>
+    /// Gets the virtual screen bounds (origin used for capturing).
+    /// </summary>
+    public DrawingRectangle VirtualScreenBounds => new(
+        (int)Left,
+        (int)Top,
+        (int)Width,
+        (int)Height);
+
+    /// <summary>
     /// Gets the captured screenshot bitmap.
     /// </summary>
     public BitmapSource? ScreenshotBitmap => _screenshotBackground;
@@ -367,7 +376,7 @@ public partial class OverlayWindow : Window
         {
             // Create exporter service
             var exporter = new Flareshot.Core.IO.ImageExporterService();
-            
+
             // Generate default filename
             var defaultFilename = exporter.GenerateFilename("png");
             var defaultFolder = exporter.GetDefaultSaveFolder();
@@ -393,17 +402,20 @@ public partial class OverlayWindow : Window
 
                 if (annotations.Count > 0)
                 {
-                    finalBitmap = exporter.RenderWithAnnotations(_screenshotBackground, SelectedRegion, annotations);
+                    finalBitmap = exporter.RenderWithAnnotations(_screenshotBackground, SelectedRegion, VirtualScreenBounds, annotations);
                 }
                 else
                 {
-                    // Just crop without annotations
-                    var cropRect = new System.Windows.Int32Rect(
-                        Math.Max(0, SelectedRegion.X),
-                        Math.Max(0, SelectedRegion.Y),
-                        Math.Min(SelectedRegion.Width, (int)_screenshotBackground.PixelWidth - Math.Max(0, SelectedRegion.X)),
-                        Math.Min(SelectedRegion.Height, (int)_screenshotBackground.PixelHeight - Math.Max(0, SelectedRegion.Y)));
-                    
+                    // Just crop without annotations - convert screen coords to bitmap-relative coords
+                    int bitmapX = SelectedRegion.X - VirtualScreenBounds.X;
+                    int bitmapY = SelectedRegion.Y - VirtualScreenBounds.Y;
+                    int clampedX = Math.Max(0, bitmapX);
+                    int clampedY = Math.Max(0, bitmapY);
+                    int clampedWidth = Math.Min(SelectedRegion.Width, (int)_screenshotBackground.PixelWidth - clampedX);
+                    int clampedHeight = Math.Min(SelectedRegion.Height, (int)_screenshotBackground.PixelHeight - clampedY);
+
+                    var cropRect = new System.Windows.Int32Rect(clampedX, clampedY, clampedWidth, clampedHeight);
+
                     var cropped = new CroppedBitmap(_screenshotBackground, cropRect);
                     cropped.Freeze();
                     finalBitmap = cropped;
@@ -424,7 +436,7 @@ public partial class OverlayWindow : Window
                 {
                     // Raise event to notify App about the save (for notification)
                     FileSaved?.Invoke(this, new FileSavedEventArgs(filePath));
-                    
+
                     // Close overlay after successful save
                     Close();
                 }
@@ -616,7 +628,7 @@ public partial class OverlayWindow : Window
         else if (_isSelecting)
         {
             _isSelecting = false;
-            
+
             // Check if selection is large enough
             if (_selectionRect.Width >= MinSelectionSize && _selectionRect.Height >= MinSelectionSize)
             {
@@ -818,7 +830,7 @@ public partial class OverlayWindow : Window
 
         var command = new AddAnnotationCommand(DrawingCanvas, annotation);
         _commandHistory.Execute(command);
-        
+
         // Force redraw to show the text
         DrawingCanvas.InvalidateVisual();
     }
@@ -1094,7 +1106,7 @@ public partial class OverlayWindow : Window
     private void UpdateCursor(WinPoint point)
     {
         var handle = GetResizeHandleAtPoint(point);
-        
+
         Cursor = handle switch
         {
             ResizeHandle.TopLeft or ResizeHandle.BottomRight => Cursors.SizeNWSE,
@@ -1246,6 +1258,7 @@ public partial class OverlayWindow : Window
     {
         SelectionConfirmed?.Invoke(this, new SelectionConfirmedEventArgs(
             SelectedRegion,
+            VirtualScreenBounds,
             _screenshotBackground,
             DrawingCanvas));
     }
@@ -1259,12 +1272,14 @@ public partial class OverlayWindow : Window
 public class SelectionConfirmedEventArgs : EventArgs
 {
     public DrawingRectangle SelectedRegion { get; }
+    public DrawingRectangle VirtualScreenBounds { get; }
     public BitmapSource? Screenshot { get; }
     public DrawingCanvas? AnnotationCanvas { get; }
 
-    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, BitmapSource? screenshot, DrawingCanvas? annotationCanvas = null)
+    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, DrawingRectangle virtualScreenBounds, BitmapSource? screenshot, DrawingCanvas? annotationCanvas = null)
     {
         SelectedRegion = selectedRegion;
+        VirtualScreenBounds = virtualScreenBounds;
         Screenshot = screenshot;
         AnnotationCanvas = annotationCanvas;
     }

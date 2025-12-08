@@ -13,23 +13,27 @@ public interface IImageExporterService
     /// <summary>
     /// Renders a screenshot with annotations to a bitmap.
     /// </summary>
-    RenderTargetBitmap RenderWithAnnotations(BitmapSource screenshot, System.Drawing.Rectangle region, IReadOnlyList<Annotation> annotations);
-    
+    /// <param name="screenshot">The captured virtual screen bitmap.</param>
+    /// <param name="region">The selected region in screen coordinates.</param>
+    /// <param name="virtualBounds">The virtual screen bounds (origin of the captured bitmap).</param>
+    /// <param name="annotations">The annotations to render.</param>
+    RenderTargetBitmap RenderWithAnnotations(BitmapSource screenshot, System.Drawing.Rectangle region, System.Drawing.Rectangle virtualBounds, IReadOnlyList<Annotation> annotations);
+
     /// <summary>
     /// Saves a bitmap as PNG.
     /// </summary>
     bool SaveAsPng(BitmapSource bitmap, string path);
-    
+
     /// <summary>
     /// Saves a bitmap as JPEG.
     /// </summary>
     bool SaveAsJpg(BitmapSource bitmap, string path, int quality = 90);
-    
+
     /// <summary>
     /// Gets the default save folder path.
     /// </summary>
     string GetDefaultSaveFolder();
-    
+
     /// <summary>
     /// Generates a unique filename for a screenshot.
     /// </summary>
@@ -54,10 +58,10 @@ public class ImageExporterService : IImageExporterService
     /// <summary>
     /// Renders a screenshot with annotations to a bitmap.
     /// </summary>
-    public RenderTargetBitmap RenderWithAnnotations(BitmapSource screenshot, System.Drawing.Rectangle region, IReadOnlyList<Annotation> annotations)
+    public RenderTargetBitmap RenderWithAnnotations(BitmapSource screenshot, System.Drawing.Rectangle region, System.Drawing.Rectangle virtualBounds, IReadOnlyList<Annotation> annotations)
     {
-        // First crop the screenshot to the region
-        var croppedBitmap = CropBitmap(screenshot, region);
+        // First crop the screenshot to the region (using virtual bounds for coordinate conversion)
+        var croppedBitmap = CropBitmap(screenshot, region, virtualBounds);
         if (croppedBitmap == null)
         {
             throw new InvalidOperationException("Failed to crop screenshot");
@@ -181,15 +185,25 @@ public class ImageExporterService : IImageExporterService
     /// <summary>
     /// Crops a bitmap to the specified region.
     /// </summary>
-    private static BitmapSource? CropBitmap(BitmapSource source, System.Drawing.Rectangle region)
+    /// <param name="source">The source bitmap (captured virtual screen).</param>
+    /// <param name="region">The selected region in screen coordinates.</param>
+    /// <param name="virtualBounds">The virtual screen bounds (origin of the captured bitmap).</param>
+    private static BitmapSource? CropBitmap(BitmapSource source, System.Drawing.Rectangle region, System.Drawing.Rectangle virtualBounds)
     {
         try
         {
-            var cropRect = new System.Windows.Int32Rect(
-                Math.Max(0, region.X),
-                Math.Max(0, region.Y),
-                Math.Min(region.Width, (int)source.PixelWidth - Math.Max(0, region.X)),
-                Math.Min(region.Height, (int)source.PixelHeight - Math.Max(0, region.Y)));
+            // Convert screen coordinates to bitmap-relative coordinates
+            // The bitmap starts at (0,0) but represents the virtual screen starting at (virtualBounds.X, virtualBounds.Y)
+            int bitmapX = region.X - virtualBounds.X;
+            int bitmapY = region.Y - virtualBounds.Y;
+
+            // Clamp to valid bitmap bounds
+            int clampedX = Math.Max(0, bitmapX);
+            int clampedY = Math.Max(0, bitmapY);
+            int clampedWidth = Math.Min(region.Width, (int)source.PixelWidth - clampedX);
+            int clampedHeight = Math.Min(region.Height, (int)source.PixelHeight - clampedY);
+
+            var cropRect = new System.Windows.Int32Rect(clampedX, clampedY, clampedWidth, clampedHeight);
 
             if (cropRect.Width <= 0 || cropRect.Height <= 0)
                 return null;
