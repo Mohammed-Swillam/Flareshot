@@ -157,7 +157,7 @@ public class TrayIconManager : IDisposable
         // Create a simple 16x16 icon programmatically
         using var bitmap = new Bitmap(16, 16);
         using var graphics = Graphics.FromImage(bitmap);
-        
+
         // Blue background
         using var brush = new SolidBrush(Color.FromArgb(33, 150, 243));
         graphics.FillRectangle(brush, 0, 0, 16, 16);

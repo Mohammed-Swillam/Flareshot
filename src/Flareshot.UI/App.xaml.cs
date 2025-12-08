@@ -382,8 +382,7 @@ public partial class App : Application
         _clipboardService ??= new ClipboardService();
 
         // Crop the screenshot to the selected region
-        // Pass virtual screen bounds to correctly offset coordinates for multi-monitor setups
-        var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion, e.VirtualScreenBounds);
+        var croppedBitmap = CropBitmap(e.Screenshot, e.SelectedRegion);
 
         if (croppedBitmap == null) return;
 
@@ -464,29 +463,19 @@ public partial class App : Application
     /// <summary>
     /// Crop a BitmapSource to the specified region.
     /// </summary>
-    /// <param name="source">The source bitmap (captured virtual screen).</param>
-    /// <param name="region">The selected region in screen coordinates.</param>
-    /// <param name="virtualBounds">The virtual screen bounds (origin of the captured bitmap).</param>
-    private static BitmapSource? CropBitmap(BitmapSource? source, System.Drawing.Rectangle region, System.Drawing.Rectangle virtualBounds)
+    private static BitmapSource? CropBitmap(BitmapSource? source, System.Drawing.Rectangle region)
     {
         if (source == null) return null;
 
         try
         {
-            // Convert screen coordinates to bitmap-relative coordinates
-            // The bitmap starts at (0,0) but represents the virtual screen starting at (virtualBounds.X, virtualBounds.Y)
-            // For example, if monitor 2 is at X=-1920 and virtual bounds starts at X=-1920,
-            // then a selection at X=-1920 should map to bitmap X=0
-            int bitmapX = region.X - virtualBounds.X;
-            int bitmapY = region.Y - virtualBounds.Y;
-
-            // Clamp to valid bitmap bounds
-            int clampedX = Math.Max(0, bitmapX);
-            int clampedY = Math.Max(0, bitmapY);
-            int clampedWidth = Math.Min(region.Width, (int)source.PixelWidth - clampedX);
-            int clampedHeight = Math.Min(region.Height, (int)source.PixelHeight - clampedY);
-
-            var cropRect = new Int32Rect(clampedX, clampedY, clampedWidth, clampedHeight);
+            // Calculate the crop region relative to the source
+            // The overlay coordinates are already in screen space from Left/Top
+            var cropRect = new Int32Rect(
+                Math.Max(0, region.X),
+                Math.Max(0, region.Y),
+                Math.Min(region.Width, (int)source.PixelWidth - region.X),
+                Math.Min(region.Height, (int)source.PixelHeight - region.Y));
 
             // Ensure valid dimensions
             if (cropRect.Width <= 0 || cropRect.Height <= 0)

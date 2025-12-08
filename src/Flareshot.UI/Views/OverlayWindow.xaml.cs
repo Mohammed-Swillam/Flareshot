@@ -58,6 +58,13 @@ public partial class OverlayWindow : Window
     private Rectangle? _selectionBorder;
     private readonly List<Rectangle> _resizeHandles = new();
 
+    // Crosshair visual elements (for visibility on any background)
+    private Line? _crosshairHorizontalOuter;
+    private Line? _crosshairHorizontalInner;
+    private Line? _crosshairVerticalOuter;
+    private Line? _crosshairVerticalInner;
+    private bool _showCrosshair = true;
+
     // Constants
     private const double MinSelectionSize = 10;
     private const double HandleSize = 8;
@@ -88,15 +95,6 @@ public partial class OverlayWindow : Window
         (int)(_selectionRect.Y + Top),
         (int)_selectionRect.Width,
         (int)_selectionRect.Height);
-
-    /// <summary>
-    /// Gets the virtual screen bounds (origin used for capturing).
-    /// </summary>
-    public DrawingRectangle VirtualScreenBounds => new(
-        (int)Left,
-        (int)Top,
-        (int)Width,
-        (int)Height);
 
     /// <summary>
     /// Gets the captured screenshot bitmap.
@@ -151,6 +149,9 @@ public partial class OverlayWindow : Window
 
         // Create dim overlay elements
         CreateDimOverlays();
+
+        // Create crosshair overlay for better visibility
+        CreateCrosshairOverlay();
 
         // Focus to receive keyboard input
         Focus();
@@ -402,19 +403,16 @@ public partial class OverlayWindow : Window
 
                 if (annotations.Count > 0)
                 {
-                    finalBitmap = exporter.RenderWithAnnotations(_screenshotBackground, SelectedRegion, VirtualScreenBounds, annotations);
+                    finalBitmap = exporter.RenderWithAnnotations(_screenshotBackground, SelectedRegion, annotations);
                 }
                 else
                 {
-                    // Just crop without annotations - convert screen coords to bitmap-relative coords
-                    int bitmapX = SelectedRegion.X - VirtualScreenBounds.X;
-                    int bitmapY = SelectedRegion.Y - VirtualScreenBounds.Y;
-                    int clampedX = Math.Max(0, bitmapX);
-                    int clampedY = Math.Max(0, bitmapY);
-                    int clampedWidth = Math.Min(SelectedRegion.Width, (int)_screenshotBackground.PixelWidth - clampedX);
-                    int clampedHeight = Math.Min(SelectedRegion.Height, (int)_screenshotBackground.PixelHeight - clampedY);
-
-                    var cropRect = new System.Windows.Int32Rect(clampedX, clampedY, clampedWidth, clampedHeight);
+                    // Just crop without annotations
+                    var cropRect = new System.Windows.Int32Rect(
+                        Math.Max(0, SelectedRegion.X),
+                        Math.Max(0, SelectedRegion.Y),
+                        Math.Min(SelectedRegion.Width, (int)_screenshotBackground.PixelWidth - Math.Max(0, SelectedRegion.X)),
+                        Math.Min(SelectedRegion.Height, (int)_screenshotBackground.PixelHeight - Math.Max(0, SelectedRegion.Y)));
 
                     var cropped = new CroppedBitmap(_screenshotBackground, cropRect);
                     cropped.Freeze();
@@ -1258,7 +1256,6 @@ public partial class OverlayWindow : Window
     {
         SelectionConfirmed?.Invoke(this, new SelectionConfirmedEventArgs(
             SelectedRegion,
-            VirtualScreenBounds,
             _screenshotBackground,
             DrawingCanvas));
     }
@@ -1272,14 +1269,12 @@ public partial class OverlayWindow : Window
 public class SelectionConfirmedEventArgs : EventArgs
 {
     public DrawingRectangle SelectedRegion { get; }
-    public DrawingRectangle VirtualScreenBounds { get; }
     public BitmapSource? Screenshot { get; }
     public DrawingCanvas? AnnotationCanvas { get; }
 
-    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, DrawingRectangle virtualScreenBounds, BitmapSource? screenshot, DrawingCanvas? annotationCanvas = null)
+    public SelectionConfirmedEventArgs(DrawingRectangle selectedRegion, BitmapSource? screenshot, DrawingCanvas? annotationCanvas = null)
     {
         SelectedRegion = selectedRegion;
-        VirtualScreenBounds = virtualScreenBounds;
         Screenshot = screenshot;
         AnnotationCanvas = annotationCanvas;
     }
